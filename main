@@ -4659,7 +4659,6 @@ end)
 -- No-Spoof Godmode - камера НЕ спуфится, опускается естественно
 Globals.NoSpoofGodmodeActive = false
 Globals.AutoNoSpoofGodmodeActive = false
-Globals.NoSpoofTargetY = nil
 
 Toggles.NoSpoofGodmode:OnChanged(function(Value)
 	if Floor == "Fools" or Floor == "OldHotel" then return end
@@ -4667,59 +4666,13 @@ Toggles.NoSpoofGodmode:OnChanged(function(Value)
 	Globals.NoSpoofGodmodeActive = Value
 	
 	if Value then
-		-- Отключаем физику и коллизию полностью
-		RootPart.CanCollide = false
-		RootPart.Massless = true
-		Humanoid.PlatformStand = true
-		
-		-- Сохраняем целевую Y позицию
-		Globals.NoSpoofTargetY = RootPart.Position.Y - 2.346
-		
-		-- Сразу опускаем
+		-- ТОЧНО ТАК ЖЕ как Entity Godmode, просто без спуфа
 		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
-		Humanoid.HipHeight = -1.95
+		Humanoid.HipHeight = 0.05
 		RemotesFolder.Crouch:FireServer(true, true)
-		
-		-- Loop который мягко корректирует позицию если персонаж всплывает
-		Connections.NoSpoofGodmodeLoop = Services.RunService.Heartbeat:Connect(function()
-			if Globals.NoSpoofGodmodeActive and RootPart and Humanoid then
-				-- Обнуляем velocity чтобы не выталкивало
-				RootPart.AssemblyLinearVelocity = Vector3.new(
-					RootPart.AssemblyLinearVelocity.X,
-					math.min(RootPart.AssemblyLinearVelocity.Y, 0), -- Только вниз или 0
-					RootPart.AssemblyLinearVelocity.Z
-				)
-				
-				-- Если персонаж поднялся выше целевой позиции на 0.5+ studs - корректируем
-				local CurrentY = RootPart.Position.Y
-				if CurrentY > Globals.NoSpoofTargetY + 0.5 then
-					local Pos = RootPart.Position
-					RootPart.CFrame = CFrame.new(Pos.X, Globals.NoSpoofTargetY, Pos.Z) * (RootPart.CFrame - RootPart.Position)
-				end
-				
-				-- Держим настройки
-				RootPart.CanCollide = false
-				Humanoid.PlatformStand = true
-				Humanoid.HipHeight = -1.95
-			end
-		end)
 	else
-		-- Останавливаем loop
-		if Connections.NoSpoofGodmodeLoop then
-			Connections.NoSpoofGodmodeLoop:Disconnect()
-			Connections.NoSpoofGodmodeLoop = nil
-		end
-		
-		-- Возвращаем физику СРАЗУ
-		Humanoid.PlatformStand = false
-		Humanoid.HipHeight = 2.396
-		RootPart.Massless = false
-		RootPart.CanCollide = true
-		
-		-- Поднимаем обратно
 		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
-		
-		Globals.NoSpoofTargetY = nil
+		Humanoid.HipHeight = 2.396
 	end
 end)
 
@@ -4754,42 +4707,10 @@ local function ActivateAutoNoSpoofGodmode()
 	
 	Globals.AutoNoSpoofGodmodeActive = true
 	
-	-- Отключаем физику и коллизию полностью
-	RootPart.CanCollide = false
-	RootPart.Massless = true
-	Humanoid.PlatformStand = true
-	
-	-- Сохраняем целевую Y позицию
-	Globals.NoSpoofTargetY = RootPart.Position.Y - 2.346
-	
-	-- Сразу опускаем
+	-- ТОЧНО ТАК ЖЕ как Entity Godmode
 	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
-	Humanoid.HipHeight = -1.95
+	Humanoid.HipHeight = 0.05
 	RemotesFolder.Crouch:FireServer(true, true)
-	
-	-- Loop который мягко корректирует позицию
-	Connections.AutoNoSpoofGodmodeLoop = Services.RunService.Heartbeat:Connect(function()
-		if Globals.AutoNoSpoofGodmodeActive and RootPart and Humanoid then
-			-- Обнуляем velocity чтобы не выталкивало
-			RootPart.AssemblyLinearVelocity = Vector3.new(
-				RootPart.AssemblyLinearVelocity.X,
-				math.min(RootPart.AssemblyLinearVelocity.Y, 0),
-				RootPart.AssemblyLinearVelocity.Z
-			)
-			
-			-- Если поднялся - корректируем
-			local CurrentY = RootPart.Position.Y
-			if CurrentY > Globals.NoSpoofTargetY + 0.5 then
-				local Pos = RootPart.Position
-				RootPart.CFrame = CFrame.new(Pos.X, Globals.NoSpoofTargetY, Pos.Z) * (RootPart.CFrame - RootPart.Position)
-			end
-			
-			-- Держим настройки
-			RootPart.CanCollide = false
-			Humanoid.PlatformStand = true
-			Humanoid.HipHeight = -1.95
-		end
-	end)
 	
 	Functions.Notify({Title = "Auto Godmode", Body = "Entity detected!", Type = "Warning"})
 end
@@ -4799,22 +4720,9 @@ local function DeactivateAutoNoSpoofGodmode()
 	
 	Globals.AutoNoSpoofGodmodeActive = false
 	
-	-- Останавливаем loop
-	if Connections.AutoNoSpoofGodmodeLoop then
-		Connections.AutoNoSpoofGodmodeLoop:Disconnect()
-		Connections.AutoNoSpoofGodmodeLoop = nil
-	end
-	
-	-- Возвращаем физику СРАЗУ
-	Humanoid.PlatformStand = false
-	Humanoid.HipHeight = 2.396
-	RootPart.Massless = false
-	RootPart.CanCollide = true
-	
-	-- Поднимаем обратно
+	-- Возвращаем как было
 	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
-	
-	Globals.NoSpoofTargetY = nil
+	Humanoid.HipHeight = 2.396
 	
 	Functions.Notify({Title = "Auto Godmode", Body = "Entity despawned!", Type = "Success"})
 end
@@ -6906,22 +6814,24 @@ Functions.HandleCharacter = function(NewCharacter)
 				Character.LowerTorso.Root.C1 = Globals.OriginalC1 * CFrame.new(0, Toggles.PositionSpoof.Value and -2.346 or 0, 0)
 			end
 
-			local SpoofY = Toggles.PositionSpoof.Value and 2.328 or 0.18
+			-- Для PositionSpoof спуфим позицию, для NoSpoofGodmode - нет
+			local UseSpoof = Toggles.PositionSpoof.Value and not (Globals.NoSpoofGodmodeActive or Globals.AutoNoSpoofGodmodeActive)
+			local SpoofY = UseSpoof and 2.328 or 0.18
 			Collision.Position     = RootPart.Position + Vector3.new(0, SpoofY, 0)
 			CollisionPart.Position = RootPart.Position + Vector3.new(0, SpoofY, 0)
 
 			if Collision:FindFirstChild("CollisionCrouch") and CollisionClone:FindFirstChild("CollisionCrouch") then
-				local CrouchY = Toggles.PositionSpoof.Value and 1.328 or -0.982
+				local CrouchY = UseSpoof and 1.328 or -0.982
 				Collision.CollisionCrouch.Position = RootPart.Position + Vector3.new(0, CrouchY, 0)
 				CollisionClone.CollisionCrouch.CollisionGroup = Collision.CollisionCrouch.CollisionGroup
 			end
 			if CollisionClone:FindFirstChild("CollisionCrouch") then
-				CollisionClone.CollisionCrouch.Position = RootPart.Position + Vector3.new(0, Toggles.PositionSpoof.Value and 0.75 or -0.982, 0)
+				CollisionClone.CollisionCrouch.Position = RootPart.Position + Vector3.new(0, UseSpoof and 0.75 or -0.982, 0)
 			end
 		end
 
 		CollisionClone.CollisionGroup = Collision.CollisionGroup
-		CollisionClone.Position = RootPart.Position + Vector3.new(0, Toggles.PositionSpoof.Value and 1.75 or 0.18, 0)
+		CollisionClone.Position = RootPart.Position + Vector3.new(0, UseSpoof and 1.75 or 0.18, 0)
 
 		if Toggles.VelocityManipulationToggle.Value and Options.VelocityManipulationMode.Value == "Velocity" then
 			Globals.ManipulateBody.Parent = RootPart
@@ -8427,24 +8337,6 @@ Library:OnUnload(function()
 		if Connections.AutoNoSpoofGodmode then
 			Connections.AutoNoSpoofGodmode:Disconnect()
 			Connections.AutoNoSpoofGodmode = nil
-		end
-		
-		-- Cleanup loops
-		if Connections.NoSpoofGodmodeLoop then
-			Connections.NoSpoofGodmodeLoop:Disconnect()
-			Connections.NoSpoofGodmodeLoop = nil
-		end
-		if Connections.AutoNoSpoofGodmodeLoop then
-			Connections.AutoNoSpoofGodmodeLoop:Disconnect()
-			Connections.AutoNoSpoofGodmodeLoop = nil
-		end
-		
-		-- Reset godmodes if active
-		if (Globals.NoSpoofGodmodeActive or Globals.AutoNoSpoofGodmodeActive) and Humanoid and RootPart then
-			Humanoid.PlatformStand = false
-			RootPart.Massless = false
-			Humanoid.HipHeight = 2.396
-			RootPart.CanCollide = true
 		end
 		
 		for Key, Connection in Connections do
