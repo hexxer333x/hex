@@ -4639,29 +4639,19 @@ Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
 	Text = "Crouch Spoof", Default = false, Tooltip = "Makes the game think you are always crouching."
 })
 
--- Underground Godmode - визуальное опускание под карту через LowerTorso.Root.C1
-Toggles.UndergroundGodmode:OnChanged(function(Value)
-	if Character:FindFirstChild("LowerTorso") and Character.LowerTorso:FindFirstChild("Root") then
+Toggles.PositionSpoof:OnChanged(function(Value)
+	if Floor ~= "Fools" and Floor ~= "OldHotel" then
 		if Value then
-			-- Сохраняем оригинальное значение
-			if not Globals.OriginalC1 then
-				Globals.OriginalC1 = Character.LowerTorso.Root.C1
-			end
-			-- Опускаем нижнюю часть тела под карту (метод из 4.txt)
-			Character.LowerTorso.Root.C1 = CFrame.new(0, -2.3, 0)
+			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
+			Humanoid.HipHeight = 0.05
+			RemotesFolder.Crouch:FireServer(true, true)
 		else
-			-- Возвращаем оригинальное значение
-			if Globals.OriginalC1 then
-				Character.LowerTorso.Root.C1 = Globals.OriginalC1
-			else
-				Character.LowerTorso.Root.C1 = CFrame.new(0, 0, 0)
-			end
+			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
+			Humanoid.HipHeight = 2.396
 		end
 	end
 end)
-
--- Entity Godmode (PositionSpoof) - спуф позиции на сервере БЕЗ визуального опускания
-Toggles.PositionSpoof:OnChanged(function(Value)
+Toggles.UndergroundGodmode:OnChanged(function(Value)
 	if Floor ~= "Fools" and Floor ~= "OldHotel" then
 		if Value then
 			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
@@ -6740,6 +6730,10 @@ Functions.HandleCharacter = function(NewCharacter)
 				CollisionClone.CollisionCrouch.CanCollide = not (Toggles.NoclipToggle.Value or Toggles.VelocityManipulationToggle.Value or not IsCrouch)
 			else
 				RootPart.CanCollide = not (Toggles.NoclipToggle.Value or Toggles.VelocityManipulationToggle.Value)
+			end
+
+			if Character:FindFirstChild("LowerTorso") and Character.LowerTorso:FindFirstChild("Root") then
+				Character.LowerTorso.Root.C1 = Globals.OriginalC1 * CFrame.new(0, Toggles.PositionSpoof.Value and -2.346 or 0, 0)
 			end
 
 			-- Для PositionSpoof спуфим позицию
