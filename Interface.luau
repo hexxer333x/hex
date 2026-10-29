@@ -9,7 +9,7 @@ local Interface = {
 	ThemeManager = loadstring(game:HttpGet(BaseUrl .. "addons/ThemeManager.lua"))(),
 
 	ApplyInfoTab = loadstring(game:HttpGet(YourRepoUrl .. "InfoTab.luau"))(),
-	ApplySettingsTab = loadstring(game:HttpGet(YourRepoUrl .. "SettingsTab.luau"))()
+	ApplySettingsTab = loadstring(game:HttpGet(YourRepoUrl .. "SettingsTab.luau"))
 }
 
 Interface.ThemeManager.BuiltInThemes = {
