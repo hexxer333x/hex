@@ -4666,13 +4666,34 @@ Toggles.NoSpoofGodmode:OnChanged(function(Value)
 	Globals.NoSpoofGodmodeActive = Value
 	
 	if Value then
-		-- Просто опускаем персонажа, камера естественно опустится сама
+		-- Отключаем коллизию
 		RootPart.CanCollide = false
-		task.wait(0.05)
-		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
 		Humanoid.HipHeight = 0.05
 		RemotesFolder.Crouch:FireServer(true, true)
+		
+		-- Создаём loop который постоянно держит персонажа под землёй
+		Connections.NoSpoofGodmodeLoop = Services.RunService.Heartbeat:Connect(function()
+			if Globals.NoSpoofGodmodeActive and RootPart and Humanoid then
+				-- Постоянно держим персонажа под землёй на 2.346 studs
+				local CurrentPos = RootPart.Position
+				local TargetY = CurrentPos.Y - 2.346
+				
+				-- Плавно опускаем через Velocity вместо телепорта
+				if math.abs(RootPart.Position.Y - TargetY) > 0.1 then
+					RootPart.CFrame = CFrame.new(CurrentPos.X, TargetY, CurrentPos.Z) * (RootPart.CFrame - RootPart.Position)
+				end
+				
+				Humanoid.HipHeight = 0.05
+				RootPart.CanCollide = false
+			end
+		end)
 	else
+		-- Останавливаем loop
+		if Connections.NoSpoofGodmodeLoop then
+			Connections.NoSpoofGodmodeLoop:Disconnect()
+			Connections.NoSpoofGodmodeLoop = nil
+		end
+		
 		-- Возвращаем в норму
 		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
 		Humanoid.HipHeight = 2.396
@@ -4712,12 +4733,27 @@ local function ActivateAutoNoSpoofGodmode()
 	
 	Globals.AutoNoSpoofGodmodeActive = true
 	
-	-- Опускаем персонажа как в No-Spoof Godmode
+	-- Отключаем коллизию
 	RootPart.CanCollide = false
-	task.wait(0.05)
-	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
 	Humanoid.HipHeight = 0.05
 	RemotesFolder.Crouch:FireServer(true, true)
+	
+	-- Создаём loop который постоянно держит персонажа под землёй
+	Connections.AutoNoSpoofGodmodeLoop = Services.RunService.Heartbeat:Connect(function()
+		if Globals.AutoNoSpoofGodmodeActive and RootPart and Humanoid then
+			-- Постоянно держим персонажа под землёй на 2.346 studs
+			local CurrentPos = RootPart.Position
+			local TargetY = CurrentPos.Y - 2.346
+			
+			-- Плавно опускаем
+			if math.abs(RootPart.Position.Y - TargetY) > 0.1 then
+				RootPart.CFrame = CFrame.new(CurrentPos.X, TargetY, CurrentPos.Z) * (RootPart.CFrame - RootPart.Position)
+			end
+			
+			Humanoid.HipHeight = 0.05
+			RootPart.CanCollide = false
+		end
+	end)
 	
 	Functions.Notify({Title = "Auto Godmode", Body = "Entity detected!", Type = "Warning"})
 end
@@ -4726,6 +4762,12 @@ local function DeactivateAutoNoSpoofGodmode()
 	if not Globals.AutoNoSpoofGodmodeActive then return end
 	
 	Globals.AutoNoSpoofGodmodeActive = false
+	
+	-- Останавливаем loop
+	if Connections.AutoNoSpoofGodmodeLoop then
+		Connections.AutoNoSpoofGodmodeLoop:Disconnect()
+		Connections.AutoNoSpoofGodmodeLoop = nil
+	end
 	
 	-- Возвращаем как было
 	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
@@ -8344,6 +8386,16 @@ Library:OnUnload(function()
 		if Connections.AutoNoSpoofGodmode then
 			Connections.AutoNoSpoofGodmode:Disconnect()
 			Connections.AutoNoSpoofGodmode = nil
+		end
+		
+		-- Cleanup godmode loops
+		if Connections.NoSpoofGodmodeLoop then
+			Connections.NoSpoofGodmodeLoop:Disconnect()
+			Connections.NoSpoofGodmodeLoop = nil
+		end
+		if Connections.AutoNoSpoofGodmodeLoop then
+			Connections.AutoNoSpoofGodmodeLoop:Disconnect()
+			Connections.AutoNoSpoofGodmodeLoop = nil
 		end
 		
 		-- Reset godmodes if active
