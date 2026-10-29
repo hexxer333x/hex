@@ -4631,16 +4631,24 @@ Groupboxes.Exploits_BypassRight:AddToggle("PositionSpoof", {
 	Text = "Entity Godmode (Underground)", Default = false,
 	Tooltip = "Puts your lower body underground. Entities like Rush, Ambush, Eyes can't damage you. Works like Rendex script."
 })
+Groupboxes.Exploits_BypassRight:AddToggle("TestGodmode", {
+	Text = "Test Godmode", Default = false,
+	Tooltip = "Same as Entity Godmode but camera goes down with you. Manual toggle."
+})
 Groupboxes.Exploits_BypassRight:AddToggle("AutoGodmode", {
 	Text = "Auto Godmode", Default = false,
-	Tooltip = "Automatically puts you half-underground when Rush/Ambush/Blitz/A60/A120 spawns. Disables when entity despawns."
+	Tooltip = "Automatically activates Test Godmode when Rush/Ambush/Blitz/A60/A120 spawns. Disables when entity despawns."
+})
+Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
+	Text = "Crouch Spoof", Default = false, Tooltip = "Makes the game think you are always crouching."
 })
 Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
 	Text = "Crouch Spoof", Default = false, Tooltip = "Makes the game think you are always crouching."
 })
 
--- Globals for auto godmode
+-- Globals for godmodes
 Globals.AutoGodmodeActive = false
+Globals.TestGodmodeActive = false
 
 Toggles.PositionSpoof:OnChanged(function(Value)
 	if Floor ~= "Fools" and Floor ~= "OldHotel" then
@@ -4656,6 +4664,28 @@ Toggles.PositionSpoof:OnChanged(function(Value)
 end)
 Toggles.PositionSpoof:AddKeyPicker("PositionSpoof", {
 	Text = "Position Spoof", Default = "B", Mode = "Toggle", SyncToggleState = true
+})
+
+-- Test Godmode (ручной, камера НЕ спуфится)
+Toggles.TestGodmode:OnChanged(function(Value)
+	if Floor == "Fools" or Floor == "OldHotel" then return end
+	
+	Globals.TestGodmodeActive = Value
+	
+	if Value then
+		-- Опускаем персонажа, камера естественно опустится с ним
+		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
+		Humanoid.HipHeight = 0.05
+		RemotesFolder.Crouch:FireServer(true, true)
+	else
+		-- Возвращаем в норму
+		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
+		Humanoid.HipHeight = 2.396
+	end
+end)
+
+Toggles.TestGodmode:AddKeyPicker("TestGodmode", {
+	Text = "Test Godmode", Default = "N", Mode = "Toggle", SyncToggleState = true
 })
 
 -- Auto Godmode logic
@@ -4684,29 +4714,25 @@ local function ActivateAutoGodmode()
 	if not Toggles.AutoGodmode or not Toggles.AutoGodmode.Value then return end
 	
 	Globals.AutoGodmodeActive = true
-	local Depth = 3.5 -- Чуть больше чем наполовину
 	
-	-- Опускаем персонажа и камеру вместе
-	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -Depth, 0)
-	Humanoid.HipHeight = -Depth + 2.4
-	Humanoid.CameraOffset = Vector3.new(0, -Depth, 0)
+	-- Те же значения что Entity Godmode
+	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
+	Humanoid.HipHeight = 0.05
 	RemotesFolder.Crouch:FireServer(true, true)
 	
-	Functions.Notify({Title = "Auto Godmode", Body = "Entity detected, going underground.", Type = "Warning"})
+	Functions.Notify({Title = "Auto Godmode", Body = "Entity detected!", Type = "Warning"})
 end
 
 local function DeactivateAutoGodmode()
 	if not Globals.AutoGodmodeActive then return end
 	
 	Globals.AutoGodmodeActive = false
-	local Depth = 3.5
 	
-	-- Возвращаем в норму
-	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, Depth, 0)
+	-- Возвращаем как было
+	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
 	Humanoid.HipHeight = 2.396
-	Humanoid.CameraOffset = Vector3.new(0, 0, 0)
 	
-	Functions.Notify({Title = "Auto Godmode", Body = "Entity despawned, returning to normal.", Type = "Success"})
+	Functions.Notify({Title = "Auto Godmode", Body = "Entity despawned!", Type = "Success"})
 end
 
 -- Monitor entities for auto godmode
@@ -8312,15 +8338,16 @@ Library:OnUnload(function()
 	
 	-- Отключаем все connections
 	pcall(function()
-		-- Cleanup Auto Godmode first
+		-- Cleanup Auto Godmode
 		if Connections.AutoGodmode then
 			Connections.AutoGodmode:Disconnect()
 			Connections.AutoGodmode = nil
 		end
 		
-		-- Reset auto godmode camera state
-		if Globals.AutoGodmodeActive and Humanoid then
-			Humanoid.CameraOffset = Vector3.new(0, 0, 0)
+		-- Reset godmodes if active
+		if (Globals.AutoGodmodeActive or Globals.TestGodmodeActive) and Humanoid and RootPart then
+			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
+			Humanoid.HipHeight = 2.396
 		end
 		
 		for Key, Connection in Connections do
