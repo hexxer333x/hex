@@ -4659,7 +4659,7 @@ end)
 -- No-Spoof Godmode - камера НЕ спуфится, опускается естественно
 Globals.NoSpoofGodmodeActive = false
 Globals.AutoNoSpoofGodmodeActive = false
-Globals.NoSpoofOriginalY = nil
+Globals.NoSpoofTargetY = nil
 
 Toggles.NoSpoofGodmode:OnChanged(function(Value)
 	if Floor == "Fools" or Floor == "OldHotel" then return end
@@ -4667,45 +4667,59 @@ Toggles.NoSpoofGodmode:OnChanged(function(Value)
 	Globals.NoSpoofGodmodeActive = Value
 	
 	if Value then
-		-- Сохраняем оригинальную Y позицию
-		Globals.NoSpoofOriginalY = RootPart.Position.Y
-		
-		-- Плавно опускаем персонажа один раз
-		local TweenService = Services.TweenService
-		local TargetCFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
-		
-		-- Отключаем коллизию и меняем HipHeight
+		-- Отключаем физику и коллизию полностью
 		RootPart.CanCollide = false
-		Humanoid.HipHeight = -1.95  -- Негативный HipHeight чтобы ноги были под землёй
+		RootPart.Massless = true
+		Humanoid.PlatformStand = true
 		
-		-- Плавно двигаем вниз через tween
-		local Tween = TweenService:Create(
-			RootPart,
-			TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{CFrame = TargetCFrame}
-		)
-		Tween:Play()
+		-- Сохраняем целевую Y позицию
+		Globals.NoSpoofTargetY = RootPart.Position.Y - 2.346
 		
+		-- Сразу опускаем
+		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
+		Humanoid.HipHeight = -1.95
 		RemotesFolder.Crouch:FireServer(true, true)
+		
+		-- Loop который мягко корректирует позицию если персонаж всплывает
+		Connections.NoSpoofGodmodeLoop = Services.RunService.Heartbeat:Connect(function()
+			if Globals.NoSpoofGodmodeActive and RootPart and Humanoid then
+				-- Обнуляем velocity чтобы не выталкивало
+				RootPart.AssemblyLinearVelocity = Vector3.new(
+					RootPart.AssemblyLinearVelocity.X,
+					math.min(RootPart.AssemblyLinearVelocity.Y, 0), -- Только вниз или 0
+					RootPart.AssemblyLinearVelocity.Z
+				)
+				
+				-- Если персонаж поднялся выше целевой позиции на 0.5+ studs - корректируем
+				local CurrentY = RootPart.Position.Y
+				if CurrentY > Globals.NoSpoofTargetY + 0.5 then
+					local Pos = RootPart.Position
+					RootPart.CFrame = CFrame.new(Pos.X, Globals.NoSpoofTargetY, Pos.Z) * (RootPart.CFrame - RootPart.Position)
+				end
+				
+				-- Держим настройки
+				RootPart.CanCollide = false
+				Humanoid.PlatformStand = true
+				Humanoid.HipHeight = -1.95
+			end
+		end)
 	else
-		-- Возвращаем в норму плавно
-		if Globals.NoSpoofOriginalY then
-			local TweenService = Services.TweenService
-			local CurrentPos = RootPart.Position
-			local TargetCFrame = CFrame.new(CurrentPos.X, Globals.NoSpoofOriginalY + 2.346, CurrentPos.Z) * (RootPart.CFrame - RootPart.Position)
-			
-			local Tween = TweenService:Create(
-				RootPart,
-				TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{CFrame = TargetCFrame}
-			)
-			Tween:Play()
-			Tween.Completed:Wait()
+		-- Останавливаем loop
+		if Connections.NoSpoofGodmodeLoop then
+			Connections.NoSpoofGodmodeLoop:Disconnect()
+			Connections.NoSpoofGodmodeLoop = nil
 		end
 		
+		-- Возвращаем физику СРАЗУ
+		Humanoid.PlatformStand = false
 		Humanoid.HipHeight = 2.396
+		RootPart.Massless = false
 		RootPart.CanCollide = true
-		Globals.NoSpoofOriginalY = nil
+		
+		-- Поднимаем обратно
+		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
+		
+		Globals.NoSpoofTargetY = nil
 	end
 end)
 
@@ -4739,25 +4753,43 @@ local function ActivateAutoNoSpoofGodmode()
 	if not Toggles.AutoNoSpoofGodmode or not Toggles.AutoNoSpoofGodmode.Value then return end
 	
 	Globals.AutoNoSpoofGodmodeActive = true
-	Globals.NoSpoofOriginalY = RootPart.Position.Y
 	
-	-- Плавно опускаем персонажа один раз
-	local TweenService = Services.TweenService
-	local TargetCFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
-	
-	-- Отключаем коллизию и меняем HipHeight
+	-- Отключаем физику и коллизию полностью
 	RootPart.CanCollide = false
+	RootPart.Massless = true
+	Humanoid.PlatformStand = true
+	
+	-- Сохраняем целевую Y позицию
+	Globals.NoSpoofTargetY = RootPart.Position.Y - 2.346
+	
+	-- Сразу опускаем
+	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
 	Humanoid.HipHeight = -1.95
-	
-	-- Плавно двигаем вниз
-	local Tween = TweenService:Create(
-		RootPart,
-		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{CFrame = TargetCFrame}
-	)
-	Tween:Play()
-	
 	RemotesFolder.Crouch:FireServer(true, true)
+	
+	-- Loop который мягко корректирует позицию
+	Connections.AutoNoSpoofGodmodeLoop = Services.RunService.Heartbeat:Connect(function()
+		if Globals.AutoNoSpoofGodmodeActive and RootPart and Humanoid then
+			-- Обнуляем velocity чтобы не выталкивало
+			RootPart.AssemblyLinearVelocity = Vector3.new(
+				RootPart.AssemblyLinearVelocity.X,
+				math.min(RootPart.AssemblyLinearVelocity.Y, 0),
+				RootPart.AssemblyLinearVelocity.Z
+			)
+			
+			-- Если поднялся - корректируем
+			local CurrentY = RootPart.Position.Y
+			if CurrentY > Globals.NoSpoofTargetY + 0.5 then
+				local Pos = RootPart.Position
+				RootPart.CFrame = CFrame.new(Pos.X, Globals.NoSpoofTargetY, Pos.Z) * (RootPart.CFrame - RootPart.Position)
+			end
+			
+			-- Держим настройки
+			RootPart.CanCollide = false
+			Humanoid.PlatformStand = true
+			Humanoid.HipHeight = -1.95
+		end
+	end)
 	
 	Functions.Notify({Title = "Auto Godmode", Body = "Entity detected!", Type = "Warning"})
 end
@@ -4767,29 +4799,22 @@ local function DeactivateAutoNoSpoofGodmode()
 	
 	Globals.AutoNoSpoofGodmodeActive = false
 	
-	-- Возвращаем плавно
-	if Globals.NoSpoofOriginalY then
-		local TweenService = Services.TweenService
-		local CurrentPos = RootPart.Position
-		local TargetCFrame = CFrame.new(CurrentPos.X, Globals.NoSpoofOriginalY + 2.346, CurrentPos.Z) * (RootPart.CFrame - RootPart.Position)
-		
-		local Tween = TweenService:Create(
-			RootPart,
-			TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{CFrame = TargetCFrame}
-		)
-		Tween:Play()
-		task.spawn(function()
-			Tween.Completed:Wait()
-			Humanoid.HipHeight = 2.396
-			RootPart.CanCollide = true
-		end)
-	else
-		Humanoid.HipHeight = 2.396
-		RootPart.CanCollide = true
+	-- Останавливаем loop
+	if Connections.AutoNoSpoofGodmodeLoop then
+		Connections.AutoNoSpoofGodmodeLoop:Disconnect()
+		Connections.AutoNoSpoofGodmodeLoop = nil
 	end
 	
-	Globals.NoSpoofOriginalY = nil
+	-- Возвращаем физику СРАЗУ
+	Humanoid.PlatformStand = false
+	Humanoid.HipHeight = 2.396
+	RootPart.Massless = false
+	RootPart.CanCollide = true
+	
+	-- Поднимаем обратно
+	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
+	
+	Globals.NoSpoofTargetY = nil
 	
 	Functions.Notify({Title = "Auto Godmode", Body = "Entity despawned!", Type = "Success"})
 end
@@ -8404,8 +8429,20 @@ Library:OnUnload(function()
 			Connections.AutoNoSpoofGodmode = nil
 		end
 		
+		-- Cleanup loops
+		if Connections.NoSpoofGodmodeLoop then
+			Connections.NoSpoofGodmodeLoop:Disconnect()
+			Connections.NoSpoofGodmodeLoop = nil
+		end
+		if Connections.AutoNoSpoofGodmodeLoop then
+			Connections.AutoNoSpoofGodmodeLoop:Disconnect()
+			Connections.AutoNoSpoofGodmodeLoop = nil
+		end
+		
 		-- Reset godmodes if active
 		if (Globals.NoSpoofGodmodeActive or Globals.AutoNoSpoofGodmodeActive) and Humanoid and RootPart then
+			Humanoid.PlatformStand = false
+			RootPart.Massless = false
 			Humanoid.HipHeight = 2.396
 			RootPart.CanCollide = true
 		end
