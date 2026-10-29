@@ -16,19 +16,10 @@ local BaseUrl = "https://raw.githubusercontent.com/hexxer333x/hex/main/"
 
 do
 	local EnvironmentSuccess, EnvironmentModule = pcall(function()
-		local url = BaseUrl .. "Environment.luau"
-		warn("[Hexware] Loading Environment from:", url)
-		local code = game:HttpGet(url)
-		warn("[Hexware] Environment code length:", #code)
-		if code == "" or not code then
-			error("Environment.luau returned empty or nil")
-		end
-		return loadstring(code)()
+		return loadstring(game:HttpGet(BaseUrl .. "Environment.luau"))()
 	end)
 
 	if not EnvironmentSuccess then
-		warn("[Hexware] Failed to load Environment:", EnvironmentModule)
-		warn("[Hexware] BaseUrl:", BaseUrl)
 		shared.Hastelepasta = false
 		return
 	end
@@ -57,14 +48,10 @@ do
 
 	if ESPSuccess then
 		Abysall.ESPLibrary = ESPModule
-	else
-		warn("[Hexware] Failed to load ESP:", ESPModule)
 	end
 
 	if NoticeSuccess then
 		Abysall["16Notice"] = NoticeModule
-	else
-		warn("[Hexware] Failed to load 16Notice:", NoticeModule)
 	end
 end
 
@@ -137,7 +124,6 @@ do
 	if InterfaceSuccess then
 		Abysall.Interface = InterfaceModule
 	else
-		warn("[Hexware] Failed to load Interface:", InterfaceModule)
 		shared.Hastelepasta = false
 		return
 	end
@@ -4642,12 +4628,20 @@ end)
 
 Groupboxes.Exploits_BypassRight:AddDivider()
 Groupboxes.Exploits_BypassRight:AddToggle("PositionSpoof", {
-	Text = "Position Spoof", Default = false,
-	Tooltip = "Makes your character appear underground on the server, protecting you from rush-like entities."
+	Text = "Entity Godmode (Underground)", Default = false,
+	Tooltip = "Puts your lower body underground. Entities like Rush, Ambush, Eyes can't damage you. Works like Rendex script."
+})
+Groupboxes.Exploits_BypassRight:AddToggle("AutoGodmode", {
+	Text = "Auto Godmode", Default = false,
+	Tooltip = "Automatically puts you half-underground when Rush/Ambush/Blitz/A60/A120 spawns. Disables when entity despawns."
 })
 Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
 	Text = "Crouch Spoof", Default = false, Tooltip = "Makes the game think you are always crouching."
 })
+
+-- Globals for auto godmode
+Globals.AutoGodmodeActive = false
+
 Toggles.PositionSpoof:OnChanged(function(Value)
 	if Floor ~= "Fools" and Floor ~= "OldHotel" then
 		if Value then
@@ -4663,6 +4657,79 @@ end)
 Toggles.PositionSpoof:AddKeyPicker("PositionSpoof", {
 	Text = "Position Spoof", Default = "B", Mode = "Toggle", SyncToggleState = true
 })
+
+-- Auto Godmode logic
+local AutoGodmodeEntities = {
+	"RushMoving",
+	"AmbushMoving", 
+	"BashMoving",
+	"BackdoorRush",
+	"A60",
+	"A120",
+	"GlitchRush",
+	"GlitchAmbush"
+}
+
+local function IsAutoGodmodeEntity(EntityName)
+	for _, Name in ipairs(AutoGodmodeEntities) do
+		if EntityName == Name then
+			return true
+		end
+	end
+	return false
+end
+
+local function ActivateAutoGodmode()
+	if Globals.AutoGodmodeActive or Floor == "Fools" or Floor == "OldHotel" then return end
+	if not Toggles.AutoGodmode or not Toggles.AutoGodmode.Value then return end
+	
+	Globals.AutoGodmodeActive = true
+	local Depth = 3.5 -- Чуть больше чем наполовину
+	
+	-- Опускаем персонажа и камеру вместе
+	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -Depth, 0)
+	Humanoid.HipHeight = -Depth + 2.4
+	Humanoid.CameraOffset = Vector3.new(0, -Depth, 0)
+	RemotesFolder.Crouch:FireServer(true, true)
+	
+	Functions.Notify({Title = "Auto Godmode", Body = "Entity detected, going underground.", Type = "Warning"})
+end
+
+local function DeactivateAutoGodmode()
+	if not Globals.AutoGodmodeActive then return end
+	
+	Globals.AutoGodmodeActive = false
+	local Depth = 3.5
+	
+	-- Возвращаем в норму
+	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, Depth, 0)
+	Humanoid.HipHeight = 2.396
+	Humanoid.CameraOffset = Vector3.new(0, 0, 0)
+	
+	Functions.Notify({Title = "Auto Godmode", Body = "Entity despawned, returning to normal.", Type = "Success"})
+end
+
+-- Monitor entities for auto godmode
+Connections.AutoGodmode = Services.Workspace.ChildAdded:Connect(function(Child)
+	if Toggles.AutoGodmode and Toggles.AutoGodmode.Value then
+		if IsAutoGodmodeEntity(Child.Name) then
+			task.wait(0.1)
+			ActivateAutoGodmode()
+			
+			-- Wait for entity to despawn
+			Child.Destroying:Connect(function()
+				task.wait(0.5)
+				DeactivateAutoGodmode()
+			end)
+		end
+	end
+end)
+
+Toggles.AutoGodmode:OnChanged(function(Value)
+	if not Value and Globals.AutoGodmodeActive then
+		DeactivateAutoGodmode()
+	end
+end)
 Toggles.CrouchSpoof:OnChanged(function(Value)
 	if RemotesFolder:FindFirstChild("Crouch") then
 		RemotesFolder.Crouch:FireServer(Value and true or Functions.IsCrouching(), true)
@@ -6139,38 +6206,7 @@ Groupboxes.Floors_Farming:AddButton({
     end
 })
 
-Groupboxes.Floors_Farming:AddDivider()
-Groupboxes.Floors_Farming:AddButton({
-	Text = "Start Death Farm",
-	DoubleClick = true,
-	Tooltip = "Automatically farms deaths, joining new runs.",
-	Func = function()
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/bocaj111004/Abysall/refs/heads/main/Scripts/DeathFarm.luau"))()
-	end,
 
-	Disabled = not Functions.CheckCompatability({"fireproximityprompt", "firesignal"}),
-	DisabledTooltip = Globals.IncompatibleMessage
-})
-Groupboxes.Floors_Farming:AddButton({
-	Text = "Copy Death Farm Loadstring",
-	DoubleClick = false,
-	Tooltip = "Copies the death farm loadstring to your clipboard.",
-	Func = function()
-		local LoadstringText = [==[
-			loadstring(game:HttpGet("https://raw.githubusercontent.com/therealcookiemonsterof1966/AbysallContinued/main/Scripts/DeathFarm.luau"))()
-		]==]
-		
-		if Abysall.Environment.setclipboard then
-			Abysall.Environment.setclipboard(LoadstringText)
-			Library:Notify("Loadstring has been copied to your clipboard.")
-		else
-			Library:Notify("Clipboard not supported by your executor.")
-		end
-	end,
-
-	Disabled = not Functions.CheckCompatability({"fireproximityprompt", "firesignal"}),
-	DisabledTooltip = Globals.IncompatibleMessage
-})
 
 Toggles.KnobFarm:OnChanged(function(Value)
     if Value then
@@ -8276,6 +8312,17 @@ Library:OnUnload(function()
 	
 	-- Отключаем все connections
 	pcall(function()
+		-- Cleanup Auto Godmode first
+		if Connections.AutoGodmode then
+			Connections.AutoGodmode:Disconnect()
+			Connections.AutoGodmode = nil
+		end
+		
+		-- Reset auto godmode camera state
+		if Globals.AutoGodmodeActive and Humanoid then
+			Humanoid.CameraOffset = Vector3.new(0, 0, 0)
+		end
+		
 		for Key, Connection in Connections do
 			if type(Key) == "string" then
 				pcall(function() Connection:Disconnect() end)
