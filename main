@@ -4628,27 +4628,20 @@ end)
 
 Groupboxes.Exploits_BypassRight:AddDivider()
 Groupboxes.Exploits_BypassRight:AddToggle("PositionSpoof", {
-	Text = "Entity Godmode (Underground)", Default = false,
-	Tooltip = "Puts your lower body underground. Entities like Rush, Ambush, Eyes can't damage you. Works like Rendex script."
+	Text = "Entity Godmode", Default = false,
+	Tooltip = "Puts your lower body underground. Entities like Rush, Ambush, Eyes can't damage you."
 })
-Groupboxes.Exploits_BypassRight:AddToggle("TestGodmode", {
-	Text = "Test Godmode", Default = false,
-	Tooltip = "Same as Entity Godmode but camera goes down with you. Manual toggle."
+Groupboxes.Exploits_BypassRight:AddToggle("NoSpoofGodmode", {
+	Text = "No-Spoof Godmode", Default = false,
+	Tooltip = "Same as Entity Godmode but camera naturally follows you down instead of staying in place."
 })
-Groupboxes.Exploits_BypassRight:AddToggle("AutoGodmode", {
-	Text = "Auto Godmode", Default = false,
-	Tooltip = "Automatically activates Test Godmode when Rush/Ambush/Blitz/A60/A120 spawns. Disables when entity despawns."
-})
-Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
-	Text = "Crouch Spoof", Default = false, Tooltip = "Makes the game think you are always crouching."
+Groupboxes.Exploits_BypassRight:AddToggle("AutoNoSpoofGodmode", {
+	Text = "Auto No-Spoof Godmode", Default = false,
+	Tooltip = "Automatically activates No-Spoof Godmode when Rush/Ambush/Blitz/A60/A120 spawns. Disables when entity despawns."
 })
 Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
 	Text = "Crouch Spoof", Default = false, Tooltip = "Makes the game think you are always crouching."
 })
-
--- Globals for godmodes
-Globals.AutoGodmodeActive = false
-Globals.TestGodmodeActive = false
 
 Toggles.PositionSpoof:OnChanged(function(Value)
 	if Floor ~= "Fools" and Floor ~= "OldHotel" then
@@ -4662,18 +4655,20 @@ Toggles.PositionSpoof:OnChanged(function(Value)
 		end
 	end
 end)
-Toggles.PositionSpoof:AddKeyPicker("PositionSpoof", {
-	Text = "Position Spoof", Default = "B", Mode = "Toggle", SyncToggleState = true
-})
 
--- Test Godmode (ручной, камера НЕ спуфится)
-Toggles.TestGodmode:OnChanged(function(Value)
+-- No-Spoof Godmode - камера НЕ спуфится, опускается естественно
+Globals.NoSpoofGodmodeActive = false
+Globals.AutoNoSpoofGodmodeActive = false
+
+Toggles.NoSpoofGodmode:OnChanged(function(Value)
 	if Floor == "Fools" or Floor == "OldHotel" then return end
 	
-	Globals.TestGodmodeActive = Value
+	Globals.NoSpoofGodmodeActive = Value
 	
 	if Value then
-		-- Опускаем персонажа, камера естественно опустится с ним
+		-- Просто опускаем персонажа, камера естественно опустится сама
+		RootPart.CanCollide = false
+		task.wait(0.05)
 		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
 		Humanoid.HipHeight = 0.05
 		RemotesFolder.Crouch:FireServer(true, true)
@@ -4681,14 +4676,16 @@ Toggles.TestGodmode:OnChanged(function(Value)
 		-- Возвращаем в норму
 		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
 		Humanoid.HipHeight = 2.396
+		task.wait(0.05)
+		RootPart.CanCollide = true
 	end
 end)
 
-Toggles.TestGodmode:AddKeyPicker("TestGodmode", {
-	Text = "Test Godmode", Default = "N", Mode = "Toggle", SyncToggleState = true
+Toggles.NoSpoofGodmode:AddKeyPicker("NoSpoofGodmode", {
+	Text = "No-Spoof Godmode", Default = "N", Mode = "Toggle", SyncToggleState = true
 })
 
--- Auto Godmode logic
+-- Auto No-Spoof Godmode logic
 local AutoGodmodeEntities = {
 	"RushMoving",
 	"AmbushMoving", 
@@ -4709,13 +4706,15 @@ local function IsAutoGodmodeEntity(EntityName)
 	return false
 end
 
-local function ActivateAutoGodmode()
-	if Globals.AutoGodmodeActive or Floor == "Fools" or Floor == "OldHotel" then return end
-	if not Toggles.AutoGodmode or not Toggles.AutoGodmode.Value then return end
+local function ActivateAutoNoSpoofGodmode()
+	if Globals.AutoNoSpoofGodmodeActive or Floor == "Fools" or Floor == "OldHotel" then return end
+	if not Toggles.AutoNoSpoofGodmode or not Toggles.AutoNoSpoofGodmode.Value then return end
 	
-	Globals.AutoGodmodeActive = true
+	Globals.AutoNoSpoofGodmodeActive = true
 	
-	-- Те же значения что Entity Godmode
+	-- Опускаем персонажа как в No-Spoof Godmode
+	RootPart.CanCollide = false
+	task.wait(0.05)
 	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
 	Humanoid.HipHeight = 0.05
 	RemotesFolder.Crouch:FireServer(true, true)
@@ -4723,39 +4722,42 @@ local function ActivateAutoGodmode()
 	Functions.Notify({Title = "Auto Godmode", Body = "Entity detected!", Type = "Warning"})
 end
 
-local function DeactivateAutoGodmode()
-	if not Globals.AutoGodmodeActive then return end
+local function DeactivateAutoNoSpoofGodmode()
+	if not Globals.AutoNoSpoofGodmodeActive then return end
 	
-	Globals.AutoGodmodeActive = false
+	Globals.AutoNoSpoofGodmodeActive = false
 	
 	-- Возвращаем как было
 	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
 	Humanoid.HipHeight = 2.396
+	task.wait(0.05)
+	RootPart.CanCollide = true
 	
 	Functions.Notify({Title = "Auto Godmode", Body = "Entity despawned!", Type = "Success"})
 end
 
 -- Monitor entities for auto godmode
-Connections.AutoGodmode = Services.Workspace.ChildAdded:Connect(function(Child)
-	if Toggles.AutoGodmode and Toggles.AutoGodmode.Value then
+Connections.AutoNoSpoofGodmode = Services.Workspace.ChildAdded:Connect(function(Child)
+	if Toggles.AutoNoSpoofGodmode and Toggles.AutoNoSpoofGodmode.Value then
 		if IsAutoGodmodeEntity(Child.Name) then
 			task.wait(0.1)
-			ActivateAutoGodmode()
+			ActivateAutoNoSpoofGodmode()
 			
 			-- Wait for entity to despawn
 			Child.Destroying:Connect(function()
 				task.wait(0.5)
-				DeactivateAutoGodmode()
+				DeactivateAutoNoSpoofGodmode()
 			end)
 		end
 	end
 end)
 
-Toggles.AutoGodmode:OnChanged(function(Value)
-	if not Value and Globals.AutoGodmodeActive then
-		DeactivateAutoGodmode()
+Toggles.AutoNoSpoofGodmode:OnChanged(function(Value)
+	if not Value and Globals.AutoNoSpoofGodmodeActive then
+		DeactivateAutoNoSpoofGodmode()
 	end
 end)
+
 Toggles.CrouchSpoof:OnChanged(function(Value)
 	if RemotesFolder:FindFirstChild("Crouch") then
 		RemotesFolder.Crouch:FireServer(Value and true or Functions.IsCrouching(), true)
@@ -8338,16 +8340,17 @@ Library:OnUnload(function()
 	
 	-- Отключаем все connections
 	pcall(function()
-		-- Cleanup Auto Godmode
-		if Connections.AutoGodmode then
-			Connections.AutoGodmode:Disconnect()
-			Connections.AutoGodmode = nil
+		-- Cleanup Auto No-Spoof Godmode
+		if Connections.AutoNoSpoofGodmode then
+			Connections.AutoNoSpoofGodmode:Disconnect()
+			Connections.AutoNoSpoofGodmode = nil
 		end
 		
 		-- Reset godmodes if active
-		if (Globals.AutoGodmodeActive or Globals.TestGodmodeActive) and Humanoid and RootPart then
+		if (Globals.NoSpoofGodmodeActive or Globals.AutoNoSpoofGodmodeActive) and Humanoid and RootPart then
 			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
 			Humanoid.HipHeight = 2.396
+			RootPart.CanCollide = true
 		end
 		
 		for Key, Connection in Connections do
