@@ -1,5 +1,8 @@
--- Cleaned Environment.luau
+-- Cleaned Environment.luau (без проверок и кика)
 local Environment = {}
+
+-- Для совместимости с InfoTab
+Environment.Results = {}
 
 local Global = setmetatable({}, {
 	__index = function(Self, Name)
@@ -35,6 +38,8 @@ for _, func_name in ipairs(executor_funcs) do
 	local func = Global[func_name]
 	if func then
 		Environment[func_name] = func
+		-- Добавляем в Results для InfoTab
+		table.insert(Environment.Results, "✅ " .. func_name)
 	end
 end
 
