@@ -21,8 +21,6 @@ return function(Window)
 	-- Changelog (убраны сообщения о краже)
 	local changelog = {
 		"<font color='rgb(0, 255, 0)'>+ Hexware fork created</font>",
-		"<font color='rgb(255, 255, 0)'>~ Updated Sally notification message</font>",
-		"<font color='rgb(255, 255, 0)'>~ Expanded ItemNames & Entities lists</font>",
 		"<font color='rgb(255, 0, 0)'>- Removed telemetry</font>"
 	}
 	
@@ -41,12 +39,7 @@ return function(Window)
 	-- Credits Group
 	local CreditsGroup = InfoTab:AddRightGroupbox("Credits")
 	local credits = {
-		"<font color='rgb(0, 255, 255)'>CookieMonster — Owner of the Continued Script</font>",
-		"<font color='rgb(255, 165, 0)'>FireBacon — Owner of the Discontinued Script</font>",
-		"<font color='rgb(197, 63, 132)'>Rhyan57 — Provided the Infinite Crucifix</font>",
-		"<font color='rgb(241, 106, 212)'>Abbas - Basicly a developer</font>",
-		"<font color='rgb(120, 200, 255)'>den4ik_top_off - Theme creator</font>",
-		"<font color='rgb(120, 200, 255)'>sasanixx - Theme creator</font>",
+		"<font color='rgb(0, 255, 255)'>Hexxer333 — Owner of the Continued Script</font>",
 		"<font color='rgb(50, 205, 50)'>" .. LocalPlayer.Name .. " — For Using This Script</font>"
 	}
 	
@@ -102,7 +95,7 @@ return function(Window)
 	
 	-- Community Group
 	InfoTab:AddLeftGroupbox("Community"):AddButton("Copy Discord Invite", function()
-		toclipboard("https://dsc.gg/abysallhubcontinued")
+		toclipboard("https://discord.gg/BGyQMjVYCb")
 		Library:Notify("Discord invite copied.")
 	end)
 end
