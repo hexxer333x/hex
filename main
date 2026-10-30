@@ -4707,7 +4707,7 @@ local function CheckActiveEntities()
 	return Count
 end
 
-local function ActivateAutoUndergroundGodmode()
+local function ActivateAutoUndergroundGodmode(EntityName)
 	if Floor == "Fools" or Floor == "OldHotel" then return end
 	if not Toggles.AutoUndergroundGodmode or not Toggles.AutoUndergroundGodmode.Value then return end
 	
@@ -4719,7 +4719,7 @@ local function ActivateAutoUndergroundGodmode()
 			Toggles.UndergroundGodmode:SetValue(true)
 		end
 		
-		Functions.Notify({Title = "Auto Underground", Body = "Entity detected! Godmode activated.", Type = "Warning"})
+		Functions.Notify({Title = "Auto Underground", Body = "Entity spawned | Godmode enabled", Type = "Warning"})
 	end
 end
 
@@ -4743,7 +4743,7 @@ local function DeactivateAutoUndergroundGodmode()
 				Toggles.UndergroundGodmode:SetValue(false)
 			end
 			
-			Functions.Notify({Title = "Auto Underground", Body = "All entities despawned! Godmode disabled.", Type = "Success"})
+			Functions.Notify({Title = "Auto Underground", Body = "Entity despawned | Godmode disabled", Type = "Success"})
 		end
 	end
 end
@@ -4753,7 +4753,7 @@ Connections.AutoUndergroundGodmode = Services.Workspace.ChildAdded:Connect(funct
 	if Toggles.AutoUndergroundGodmode and Toggles.AutoUndergroundGodmode.Value then
 		if IsAutoGodmodeEntity(Child.Name) then
 			task.wait(0.1)
-			ActivateAutoUndergroundGodmode()
+			ActivateAutoUndergroundGodmode(Child.Name)
 		end
 	end
 end)
