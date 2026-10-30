@@ -4629,15 +4629,11 @@ end)
 Groupboxes.Exploits_BypassRight:AddDivider()
 Groupboxes.Exploits_BypassRight:AddToggle("UndergroundGodmode", {
 	Text = "Underground Godmode", Default = false,
-	Tooltip = "Puts your character underground on the server, protecting you from Rush, Ambush, Eyes, and other entities."
+	Tooltip = "Puts your character underground on the server, protecting you from Rush, Ambush, Eyes, and other entities. Enables Noclip automatically."
 })
 Groupboxes.Exploits_BypassRight:AddToggle("AutoUndergroundGodmode", {
 	Text = "Auto Underground Godmode", Default = false,
 	Tooltip = "Automatically enables Underground Godmode when Rush/Ambush/A60/A120 spawns, and disables it when they despawn."
-})
-Groupboxes.Exploits_BypassRight:AddToggle("PositionSpoof", {
-	Text = "Entity Godmode", Default = false,
-	Tooltip = "Alternative godmode. Makes your character appear underground on the server (backup method)."
 })
 Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
 	Text = "Crouch Spoof", Default = false, Tooltip = "Makes the game think you are always crouching."
@@ -4645,6 +4641,7 @@ Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
 
 -- Underground Godmode
 Globals.AutoUndergroundActive = false
+Globals.UndergroundNoclipWasEnabled = false
 
 Toggles.UndergroundGodmode:OnChanged(function(Value)
 	if Floor ~= "Fools" and Floor ~= "OldHotel" then
@@ -4652,33 +4649,28 @@ Toggles.UndergroundGodmode:OnChanged(function(Value)
 			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
 			Humanoid.HipHeight = 0.05
 			RemotesFolder.Crouch:FireServer(true, true)
+			
+			-- Автоматически включаем Noclip
+			if not Toggles.NoclipToggle.Value then
+				Globals.UndergroundNoclipWasEnabled = false
+				Toggles.NoclipToggle:SetValue(true)
+			else
+				Globals.UndergroundNoclipWasEnabled = true
+			end
 		else
 			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
 			Humanoid.HipHeight = 2.396
+			
+			-- Выключаем Noclip только если мы его включали
+			if not Globals.UndergroundNoclipWasEnabled and Toggles.NoclipToggle.Value then
+				Toggles.NoclipToggle:SetValue(false)
+			end
 		end
 	end
 end)
 
 Toggles.UndergroundGodmode:AddKeyPicker("UndergroundGodmode", {
 	Text = "Underground Godmode", Default = "G", Mode = "Toggle", SyncToggleState = true
-})
-
--- Entity Godmode (Position Spoof) - оригинальный метод из doors pasta.txt
-Toggles.PositionSpoof:OnChanged(function(Value)
-	if Floor ~= "Fools" and Floor ~= "OldHotel" then
-		if Value then
-			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
-			Humanoid.HipHeight = 0.05
-			RemotesFolder.Crouch:FireServer(true, true)
-		else
-			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
-			Humanoid.HipHeight = 2.396
-		end
-	end
-end)
-
-Toggles.PositionSpoof:AddKeyPicker("PositionSpoof", {
-	Text = "Entity Godmode", Default = "B", Mode = "Toggle", SyncToggleState = true
 })
 
 -- Auto Underground Godmode logic
@@ -4711,9 +4703,10 @@ local function ActivateAutoUndergroundGodmode()
 	
 	Globals.AutoUndergroundActive = true
 	
-	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
-	Humanoid.HipHeight = 0.05
-	RemotesFolder.Crouch:FireServer(true, true)
+	-- Просто включаем Underground Godmode тоггл (он сам всё сделает)
+	if not Toggles.UndergroundGodmode.Value then
+		Toggles.UndergroundGodmode:SetValue(true)
+	end
 	
 	Functions.Notify({Title = "Auto Underground", Body = "Entity detected! Godmode activated.", Type = "Warning"})
 end
@@ -4723,8 +4716,10 @@ local function DeactivateAutoUndergroundGodmode()
 	
 	Globals.AutoUndergroundActive = false
 	
-	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
-	Humanoid.HipHeight = 2.396
+	-- Просто выключаем Underground Godmode тоггл (он сам всё сделает)
+	if Toggles.UndergroundGodmode.Value then
+		Toggles.UndergroundGodmode:SetValue(false)
+	end
 	
 	Functions.Notify({Title = "Auto Underground", Body = "Entity despawned! Godmode disabled.", Type = "Success"})
 end
@@ -5878,7 +5873,7 @@ Connections.RoomsAutoWalkHandler = Services.RunService.Heartbeat:Connect(functio
 		AgentRadius = 1.5, AgentHeight = 1.5, Costs = { StuckPart = 8 }
 	})
 
-	if Toggles.RoomsAutoWalkIgnoreA60.Value and not Toggles.UndergroundGodmode.Value and not Toggles.PositionSpoof.Value then
+	if Toggles.RoomsAutoWalkIgnoreA60.Value and not Toggles.UndergroundGodmode.Value then
 		Toggles.UndergroundGodmode:SetValue(true)
 	end
 
@@ -6269,7 +6264,7 @@ if Functions.CheckCompatability({"hookmetamethod", "newcclosure", "getnamecallme
 			local Method = Abysall.Environment.getnamecallmethod()
 
 			if Self.Name == "Crouch" and Method == "FireServer" then
-				if Toggles.CrouchSpoof.Value or Toggles.UndergroundGodmode.Value or Toggles.PositionSpoof.Value then
+				if Toggles.CrouchSpoof.Value or Toggles.UndergroundGodmode.Value then
 					Args[1] = true
 				end
 				Args[2] = true
@@ -6781,7 +6776,7 @@ Functions.HandleCharacter = function(NewCharacter)
 			end
 		end
 
-		if (Toggles.CrouchSpoof.Value or Toggles.UndergroundGodmode.Value or Toggles.PositionSpoof.Value) and RemotesFolder:FindFirstChild("Crouch") then
+		if (Toggles.CrouchSpoof.Value or Toggles.UndergroundGodmode.Value) and RemotesFolder:FindFirstChild("Crouch") then
 			RemotesFolder.Crouch:FireServer(true, true)
 		end
 
@@ -6800,8 +6795,6 @@ Functions.HandleCharacter = function(NewCharacter)
 		if Floor == "OldHotel" or Floor == "Fools" then
 			local SpoofOffset = 0
 			if Toggles.UndergroundGodmode.Value and Functions.GetNearestEntity() then
-				SpoofOffset = 200
-			elseif Toggles.PositionSpoof.Value and Functions.GetNearestEntity() then
 				SpoofOffset = 200
 			elseif Toggles.FigureGodmode.Value and Functions.GetNearestFigure() then
 				SpoofOffset = 200
@@ -6873,7 +6866,7 @@ Functions.HandleCharacter = function(NewCharacter)
 
 		if RemotesFolder:FindFirstChild("Crouch") and tick() - Globals.LastCrouchFire > 0.1 then
 			local IsCrouch = Functions.IsCrouching()
-			if Toggles.CrouchSpoof.Value or Toggles.UndergroundGodmode.Value or Toggles.PositionSpoof.Value then IsCrouch = true end
+			if Toggles.CrouchSpoof.Value or Toggles.UndergroundGodmode.Value then IsCrouch = true end
 			RemotesFolder.Crouch:FireServer(IsCrouch, true)
 			Globals.LastCrouchFire = tick()
 		end
@@ -6962,12 +6955,6 @@ Functions.HandleCharacter = function(NewCharacter)
 
 	task.wait(1)
 	if Toggles.UndergroundGodmode.Value and Floor ~= "Fools" and Floor ~= "OldHotel" then
-		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
-		Humanoid.HipHeight = 0.05
-		RemotesFolder.Crouch:FireServer(true, true)
-	end
-	
-	if Toggles.PositionSpoof.Value and Floor ~= "Fools" and Floor ~= "OldHotel" then
 		RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
 		Humanoid.HipHeight = 0.05
 		RemotesFolder.Crouch:FireServer(true, true)
