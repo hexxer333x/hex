@@ -4642,6 +4642,7 @@ Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
 -- Underground Godmode
 Globals.AutoUndergroundActive = false
 Globals.UndergroundNoclipWasEnabled = false
+Globals.ActiveEntitiesCount = 0
 
 Toggles.UndergroundGodmode:OnChanged(function(Value)
 	if Floor ~= "Fools" and Floor ~= "OldHotel" then
@@ -4698,30 +4699,40 @@ local function IsAutoGodmodeEntity(EntityName)
 end
 
 local function ActivateAutoUndergroundGodmode()
-	if Globals.AutoUndergroundActive or Floor == "Fools" or Floor == "OldHotel" then return end
+	if Floor == "Fools" or Floor == "OldHotel" then return end
 	if not Toggles.AutoUndergroundGodmode or not Toggles.AutoUndergroundGodmode.Value then return end
 	
-	Globals.AutoUndergroundActive = true
+	-- Увеличиваем счётчик активных энтити
+	Globals.ActiveEntitiesCount = Globals.ActiveEntitiesCount + 1
 	
-	-- Просто включаем Underground Godmode тоггл (он сам всё сделает)
-	if not Toggles.UndergroundGodmode.Value then
-		Toggles.UndergroundGodmode:SetValue(true)
+	-- Включаем годмод только если он ещё не активен
+	if not Globals.AutoUndergroundActive then
+		Globals.AutoUndergroundActive = true
+		
+		if not Toggles.UndergroundGodmode.Value then
+			Toggles.UndergroundGodmode:SetValue(true)
+		end
+		
+		Functions.Notify({Title = "Auto Underground", Body = "Entity detected! Godmode activated.", Type = "Warning"})
 	end
-	
-	Functions.Notify({Title = "Auto Underground", Body = "Entity detected! Godmode activated.", Type = "Warning"})
 end
 
 local function DeactivateAutoUndergroundGodmode()
 	if not Globals.AutoUndergroundActive then return end
 	
-	Globals.AutoUndergroundActive = false
+	-- Уменьшаем счётчик активных энтити
+	Globals.ActiveEntitiesCount = math.max(0, Globals.ActiveEntitiesCount - 1)
 	
-	-- Просто выключаем Underground Godmode тоггл (он сам всё сделает)
-	if Toggles.UndergroundGodmode.Value then
-		Toggles.UndergroundGodmode:SetValue(false)
+	-- Выключаем годмод только если ВСЕ энтити пропали
+	if Globals.ActiveEntitiesCount == 0 then
+		Globals.AutoUndergroundActive = false
+		
+		if Toggles.UndergroundGodmode.Value then
+			Toggles.UndergroundGodmode:SetValue(false)
+		end
+		
+		Functions.Notify({Title = "Auto Underground", Body = "All entities despawned! Godmode disabled.", Type = "Success"})
 	end
-	
-	Functions.Notify({Title = "Auto Underground", Body = "Entity despawned! Godmode disabled.", Type = "Success"})
 end
 
 -- Monitor entities for auto godmode
@@ -4741,8 +4752,15 @@ Connections.AutoUndergroundGodmode = Services.Workspace.ChildAdded:Connect(funct
 end)
 
 Toggles.AutoUndergroundGodmode:OnChanged(function(Value)
-	if not Value and Globals.AutoUndergroundActive then
-		DeactivateAutoUndergroundGodmode()
+	if not Value then
+		-- При выключении Auto сбрасываем всё
+		Globals.ActiveEntitiesCount = 0
+		if Globals.AutoUndergroundActive then
+			Globals.AutoUndergroundActive = false
+			if Toggles.UndergroundGodmode.Value then
+				Toggles.UndergroundGodmode:SetValue(false)
+			end
+		end
 	end
 end)
 
