@@ -4627,40 +4627,43 @@ end)
 
 
 Groupboxes.Exploits_BypassRight:AddDivider()
-Groupboxes.Exploits_BypassRight:AddToggle("PositionSpoof", {
-	Text = "Entity Godmode", Default = false,
-	Tooltip = "Spoofs your position on the server to protect from rush-like entities."
-})
 Groupboxes.Exploits_BypassRight:AddToggle("UndergroundGodmode", {
 	Text = "Underground Godmode", Default = false,
-	Tooltip = "Visually puts your lower body underground with camera following naturally. Protects from Rush/Ambush/Eyes."
+	Tooltip = "Puts your character underground on the server, protecting you from Rush, Ambush, Eyes, and other entities."
+})
+Groupboxes.Exploits_BypassRight:AddToggle("AutoUndergroundGodmode", {
+	Text = "Auto Underground Godmode", Default = false,
+	Tooltip = "Automatically enables Underground Godmode when Rush/Ambush/A60/A120 spawns, and disables it when they despawn."
+})
+Groupboxes.Exploits_BypassRight:AddToggle("PositionSpoof", {
+	Text = "Entity Godmode", Default = false,
+	Tooltip = "Alternative godmode. Makes your character appear underground on the server (backup method)."
 })
 Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
 	Text = "Crouch Spoof", Default = false, Tooltip = "Makes the game think you are always crouching."
 })
 
--- Underground Godmode - визуальное опускание под карту через LowerTorso.Root.C1
+-- Underground Godmode
+Globals.AutoUndergroundActive = false
+
 Toggles.UndergroundGodmode:OnChanged(function(Value)
-	if Character:FindFirstChild("LowerTorso") and Character.LowerTorso:FindFirstChild("Root") then
+	if Floor ~= "Fools" and Floor ~= "OldHotel" then
 		if Value then
-			-- Сохраняем оригинальное значение
-			if not Globals.OriginalC1 then
-				Globals.OriginalC1 = Character.LowerTorso.Root.C1
-			end
-			-- Опускаем нижнюю часть тела под карту (метод из 4.txt)
-			Character.LowerTorso.Root.C1 = CFrame.new(0, -2.3, 0)
+			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
+			Humanoid.HipHeight = 0.05
+			RemotesFolder.Crouch:FireServer(true, true)
 		else
-			-- Возвращаем оригинальное значение
-			if Globals.OriginalC1 then
-				Character.LowerTorso.Root.C1 = Globals.OriginalC1
-			else
-				Character.LowerTorso.Root.C1 = CFrame.new(0, 0, 0)
-			end
+			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
+			Humanoid.HipHeight = 2.396
 		end
 	end
 end)
 
--- Entity Godmode (PositionSpoof) - спуф позиции на сервере БЕЗ визуального опускания
+Toggles.UndergroundGodmode:AddKeyPicker("UndergroundGodmode", {
+	Text = "Underground Godmode", Default = "G", Mode = "Toggle", SyncToggleState = true
+})
+
+-- Entity Godmode (Position Spoof) - оригинальный метод из doors pasta.txt
 Toggles.PositionSpoof:OnChanged(function(Value)
 	if Floor ~= "Fools" and Floor ~= "OldHotel" then
 		if Value then
@@ -4671,6 +4674,80 @@ Toggles.PositionSpoof:OnChanged(function(Value)
 			RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
 			Humanoid.HipHeight = 2.396
 		end
+	end
+end)
+
+Toggles.PositionSpoof:AddKeyPicker("PositionSpoof", {
+	Text = "Entity Godmode", Default = "B", Mode = "Toggle", SyncToggleState = true
+})
+
+-- Auto Underground Godmode logic
+local AutoGodmodeEntities = {
+	"RushMoving",
+	"AmbushMoving", 
+	"BlitzMoving",
+	"BashMoving",
+	"BackdoorRush",
+	"A60",
+	"A90",
+	"A120",
+	"Scramble",
+	"GlitchRush",
+	"GlitchAmbush"
+}
+
+local function IsAutoGodmodeEntity(EntityName)
+	for _, Name in ipairs(AutoGodmodeEntities) do
+		if EntityName == Name then
+			return true
+		end
+	end
+	return false
+end
+
+local function ActivateAutoUndergroundGodmode()
+	if Globals.AutoUndergroundActive or Floor == "Fools" or Floor == "OldHotel" then return end
+	if not Toggles.AutoUndergroundGodmode or not Toggles.AutoUndergroundGodmode.Value then return end
+	
+	Globals.AutoUndergroundActive = true
+	
+	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, -2.346, 0)
+	Humanoid.HipHeight = 0.05
+	RemotesFolder.Crouch:FireServer(true, true)
+	
+	Functions.Notify({Title = "Auto Underground", Body = "Entity detected! Godmode activated.", Type = "Warning"})
+end
+
+local function DeactivateAutoUndergroundGodmode()
+	if not Globals.AutoUndergroundActive then return end
+	
+	Globals.AutoUndergroundActive = false
+	
+	RootPart.CFrame = RootPart.CFrame * CFrame.new(0, 2.346, 0)
+	Humanoid.HipHeight = 2.396
+	
+	Functions.Notify({Title = "Auto Underground", Body = "Entity despawned! Godmode disabled.", Type = "Success"})
+end
+
+-- Monitor entities for auto godmode
+Connections.AutoUndergroundGodmode = Services.Workspace.ChildAdded:Connect(function(Child)
+	if Toggles.AutoUndergroundGodmode and Toggles.AutoUndergroundGodmode.Value then
+		if IsAutoGodmodeEntity(Child.Name) then
+			task.wait(0.1)
+			ActivateAutoUndergroundGodmode()
+			
+			-- Wait for entity to despawn
+			Child.Destroying:Connect(function()
+				task.wait(0.5)
+				DeactivateAutoUndergroundGodmode()
+			end)
+		end
+	end
+end)
+
+Toggles.AutoUndergroundGodmode:OnChanged(function(Value)
+	if not Value and Globals.AutoUndergroundActive then
+		DeactivateAutoUndergroundGodmode()
 	end
 end)
 
