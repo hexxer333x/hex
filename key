@@ -1,0 +1,210 @@
+local LogService = game:GetService("LogService")
+
+local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+
+-- ===== НАСТРОЙКИ =====
+local LOADER   = "https://flowauth.net/v1/loaders/96f2c439df51f9ee7e004db8c40eceea.lua"
+local KEY_LINK = "https://flowauth.net/reward/96f2c439df51f9ee7e004db8c40eceea"
+local TIMEOUT  = 8
+local DEBUG    = false
+local FLAG     = nil
+
+local HUB_NAME = "HEXWARE"
+local FOLDER   = "hexware"
+local KEY_FILE = FOLDER .. "/key.txt"
+
+local THEME = {
+    BackgroundColor = Color3.fromRGB(12, 12, 16),
+    MainColor       = Color3.fromRGB(20, 20, 27),
+    AccentColor     = Color3.fromRGB(124, 92, 255),
+    OutlineColor    = Color3.fromRGB(42, 42, 56),
+    FontColor       = Color3.fromRGB(235, 235, 245),
+}
+
+-- ===== СОХРАНЕНИЕ КЛЮЧА =====
+local function ensureFolder()
+    pcall(function()
+        if makefolder and isfolder and not isfolder(FOLDER) then
+            makefolder(FOLDER)
+        end
+    end)
+end
+
+local function saveKey(key)
+    ensureFolder()
+    pcall(function() writefile(KEY_FILE, key) end)
+end
+
+local function loadSavedKey()
+    local ok, res = pcall(function()
+        if isfile and isfile(KEY_FILE) then
+            return readfile(KEY_FILE)
+        end
+    end)
+    if ok and type(res) == "string" then
+        res = res:gsub("^%s+", ""):gsub("%s+$", "")
+        if res ~= "" then return res end
+    end
+    return nil
+end
+
+local function deleteSavedKey()
+    pcall(function()
+        if isfile and isfile(KEY_FILE) and delfile then
+            delfile(KEY_FILE)
+        end
+    end)
+end
+
+-- ===== ТЕМА =====
+for name, color in pairs(THEME) do
+    Library.Scheme[name] = color
+end
+
+local Window = Library:CreateWindow({
+    Title = HUB_NAME,
+    Footer = "Key System  •  v1.0",
+    Icon = "key-round",
+    Center = true,
+    AutoShow = true,
+    Size = UDim2.fromOffset(520, 320),
+    NotifySide = "Right",
+    ShowCustomCursor = true,
+    CornerRadius = 8,
+})
+
+local KeyTab = Window:AddKeyTab("Key System")
+
+KeyTab:AddLabel({
+    Text = "Добро пожаловать в " .. HUB_NAME .. "!",
+    DoesWrap = true,
+    Size = 20,
+})
+KeyTab:AddLabel({
+    Text = "Вставь свой ключ в поле ниже и нажми Enter, чтобы запустить скрипт. Нет ключа? Нажми «Получить ключ» внизу.",
+    DoesWrap = true,
+    Size = 15,
+})
+
+-- ===== УВЕДОМЛЕНИЯ =====
+local function notify(title, desc, time)
+    local ok = pcall(function()
+        Library:Notify({ Title = title, Description = desc, Time = time or 4 })
+    end)
+    if not ok then
+        Library:Notify(title .. ": " .. desc, time or 4)
+    end
+end
+
+local function isInvalid(msg)
+    msg = msg:lower()
+    if not msg:find("key") then return false end
+    return msg:find("invalid") or msg:find("incorrect") or msg:find("wrong")
+        or msg:find("expired") or msg:find("not found") or msg:find("blacklist")
+        or msg:find("unauthor") or msg:find("denied")
+end
+
+-- ===== ПРОВЕРКА КЛЮЧА =====
+local busy = false
+
+local function checkKey(Key, fromSaved)
+    if busy then return end
+    if type(Key) ~= "string" or Key:gsub("%s", "") == "" then
+        notify("Пустой ключ", "Введи ключ, чтобы продолжить.", 3)
+        return
+    end
+    Key = Key:gsub("^%s+", ""):gsub("%s+$", "")
+    busy = true
+    notify("Проверка", fromSaved and "Проверяем сохранённый ключ..." or "Проверяем ключ...", 2)
+
+    local invalid = false
+
+    local conn = LogService.MessageOut:Connect(function(msg)
+        if DEBUG then print("[loader log]", msg) end
+        if not invalid and isInvalid(msg) then invalid = true end
+    end)
+
+    if FLAG then getgenv()[FLAG] = nil end
+    getgenv().script_key = Key
+
+    task.spawn(function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet(LOADER))()
+        end)
+        if not ok then
+            if DEBUG then warn("[loader error]", err) end
+            if isInvalid(tostring(err)) then invalid = true end
+        end
+    end)
+
+    local t = os.clock()
+    while os.clock() - t < TIMEOUT and not invalid and not (FLAG and getgenv()[FLAG]) do
+        task.wait(0.1)
+    end
+    conn:Disconnect()
+
+    if invalid then
+        if fromSaved then
+            deleteSavedKey()
+            notify("Ключ недействителен", "Сохранённый ключ не подошёл. Введи новый.", 5)
+        else
+            notify("Incorrect key", "Ключ неверный. Проверь и попробуй ещё раз.", 4)
+        end
+        busy = false
+    else
+        saveKey(Key)
+        notify("Успешно", "Ключ принят, запускаем " .. HUB_NAME .. "!", 3)
+        task.wait(0.8)
+        Library:Unload()
+    end
+end
+
+KeyTab:AddKeyBox(function(a, b)
+    checkKey(type(a) == "string" and a or b, false)
+end)
+
+-- ===== КНОПКА "ПОЛУЧИТЬ КЛЮЧ" =====
+local function copyLink()
+    local copy = setclipboard or toclipboard or (syn and syn.write_clipboard)
+    if copy then
+        copy(KEY_LINK)
+        notify("Ссылка скопирована", "Открой её в браузере и получи ключ.", 4)
+    else
+        notify("Не удалось скопировать", KEY_LINK, 8)
+        print(KEY_LINK)
+    end
+end
+
+local added = pcall(function()
+    KeyTab:AddButton({ Text = "Получить ключ", Func = copyLink })
+end)
+if not added then
+    added = pcall(function()
+        KeyTab:AddButton("Получить ключ", copyLink)
+    end)
+end
+
+if not added then
+    local GetKeyTab = Window:AddTab("Получить ключ", "key-round")
+    local Box = GetKeyTab:AddLeftGroupbox("Ключ")
+    Box:AddLabel({
+        Text = "Нажми кнопку, чтобы скопировать ссылку на получение ключа.",
+        DoesWrap = true,
+    })
+    local ok2 = pcall(function()
+        Box:AddButton({ Text = "Получить ключ", Func = copyLink })
+    end)
+    if not ok2 then
+        Box:AddButton("Получить ключ", copyLink)
+    end
+end
+
+-- ===== АВТОВХОД ПО СОХРАНЁННОМУ КЛЮЧУ =====
+local saved = loadSavedKey()
+if saved then
+    task.spawn(function()
+        task.wait(0.5)
+        checkKey(saved, true)
+    end)
+end
